@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "iostream": "cpp",
+        "mqtt.h": "c",
+        "ws2tcpip.h": "c",
+        "time.h": "c",
+        "winsock2.h": "c",
+        "main.h": "c"
+    }
+}
