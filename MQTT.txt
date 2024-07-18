@@ -1,0 +1,177 @@
+MQTT
+固定报头+可变报头+有效载荷
+固定报头：必须存在，用于描述报文信息。里面有指出什么类型的报文，报文的等级
+可变报头：不一定存在，主要是要看什么样子类型的报文
+有效载荷：这是内容，也是通信信息存放的地方，只是有时候还会存放一些额外的信息。如客户的ID
+
+
+连接：
+固定报头（2个字节）
+			MQTT报文类型	Reserved保留位
+	byte1		0001			0000		(0x10)
+	byte2		剩余长度
+	剩余长度 = 可变报头的长度（10个字节）+有效载荷的长度
+
+可变报头由四部分组成：（10个字节）
+协议名（6个字节）
+	byte1	长度MSB(0)		00000000
+	byte2	长度LSB(4)		00000100
+	byte3	'M'				01001101
+	byte4	'Q'				01010001
+	byte5	'T'				01010100
+	byte6	'T'				01010100
+协议级别（1个字节）
+	byte7	Level(4)		00000100
+连接标志（1个字节）
+			用户名标志			密码标志		遗嘱保留		遗嘱		遗嘱标志		清理会话			保留位
+			user name flag		passwd falg		will retain		will qos	will flag		clean session		reserved
+	byte8		×					×				×			 ×	 ×		   ×				×					0
+	只有第0位是固定的，其他7位都是不固定的
+	 
+保持连接（2个字节）		以秒为单位的时间间隔
+	byte9
+	byte10
+	
+有效载荷
+客户端标识符：
+用户名
+密码 
+ 
+QoS：服务质量	就是在表示报文要发送几次
+QOS 0：最多分发一次
+QOS 1：至少分发一次
+QOS 2：只分发一次
+
+
+
+订阅主题和订阅确认：
+客户端向服务端订阅
+1、服务端发送PUBLISH报文给客户端
+2、SUBSCRIBE报文指定了最大的QoS等级
+
+订阅主题：SUBSCRIBE
+固定报头：
+			MQTT报文类型(8)	Reserved保留位
+	byte1		1				0			000010		(0x82)
+	byte2		剩余长度
+可变报头：
+	byte1	报文标识符MSB(0)		00000000			(0x00)
+	byte2	报文标识符LSB(10)		00001010			(0x0A)
+有效载荷：主题过滤器 + QoS等级
+主题过滤器（主题）		topic主题		需要在topic主题的前面加上主题的长度（例如：00 31）
+服务质量要求（QoS等级）	
+
+注意：使用订阅主题的时候一定要connect上服务器，客户端向服务端订阅
+
+
+订阅确认：SUBACK
+固定报头：
+			MQTT报文类型(9)		Reserved保留位
+	byte1		1001				0000		(0x90)
+	byte2		剩余长度
+可变报头：（包含等待确认的SUBSCRIBE报文的报文标识符，即需要包含 00 0A， 需要和上面的订阅主题中的可变报头相同）
+	byte1	报文标识符MSB
+	byte2	报文标识符LSB
+有效载荷：（包含一个返回码清单）
+	byte1		X 0 0 0 0 0 X X
+	允许的返回码值：
+		0x00 - 最大 QoS 0
+		0x01 - 成功 - 最大 QoS 1
+		0x02 - 成功 - 最大 Qos 2
+		0x80 - Failure 失败
+	在订阅主题的时候的QoS等级是多少，这里返回的就是多少，但是订阅的时候设置的是0x00或者0x01时，返回的都是0x01
+	
+取消订阅和取消订阅确认：
+
+取消订阅：UNSUBSCRIBE
+	注意：取消订阅主题的时候一定要connect上服务器和订阅主题
+		  客户端向服务器取消订阅
+
+固定报头：
+			MQTT报文类型(10)		Reserved保留位
+	byte1		1010				  0010		       (0xA2)
+	byte2		剩余长度   
+可变报头：（包含一个报文标识符）
+	byte1	报文标识符MSB
+	byte2	报文标识符LSB
+有效载荷：主题过滤器(主题)		topic主题		需要在topic主题的前面加上主题的长度（例如：00 31）
+
+取消订阅确认：UNSUBACK
+固定报头：
+			MQTT报文类型(8)		Reserved保留位
+	byte1		1					0			110000		(0xB0)
+	byte2		剩余长度(2) 
+				0					0			000010		(0x02)	
+可变报头：（包含等待确认的UNSUBSCRIBE报文的报文标识符）
+	byte1	报文标识符MSB
+	byte2	报文标识符LSB
+有效载荷：UNSUBACK报文中没有有效载荷
+
+
+发布消息：PUBLISH
+固定报头：
+			MQTT报文类型(3)		DUP		QoS-H	QoS-	RETAIN
+	byte1		0011			 X		  X		 X		   X			后4为设置为0，那么就是(0x30)
+	byte2		剩余长度   
+可变报头：主题名 + 报文标识符
+	主题名(Topic Name)：用于识别有效载荷数据应该被发布到哪一个信息通道
+	报文标识符(Packet Identifier)：只有当QoS等级为1或者2时，报文标识符字段才能出现在publish报文中
+有效载荷：包含将被发布的应用消息，数据的内容和格式是应用待定的
+响应：
+	QoS 0 		无响应
+	QoS 1		PUBACK报文
+	QoS 2		PUBREC报文
+动作
+
+
+
+JSON
+{
+	"temp":"10℃"
+}
+{}:大括号表示对象
+"":双引号表示属性或者值
+"temp":表示属性（键）
+"10℃":表示属性的具体信息（值）
+
+键：必须是字符串
+值：字符串、数组[]、对象{}、数字等
+
+
+
+
+
+天翼云：
+	data_report业务数据上报
+time					date
+total_flow				string		最大数据长度 : 2048
+valve_state				enum
+forward_total_flow		double		取值范围 : 0-99999999
+reverse_total_flow		double		取值范围 : 0-99999999
+day_peak_flow_rate		float		取值范围 : 0-1000
+{"time":%s,"total_flow":%s,"valve_statx":1,"forward_total_flow":%f,"reverse_total_flow":%f,"day_peak_flow_rate":%f}
+	signal_report信号数据上报
+ecl						Int32		取值范围 : -32768-32767
+rsrp					Int32		取值范围 : -32768-32767
+sinr					Int32		取值范围 : -32768-32767
+pci						Int32		取值范围 : -32768-32767
+cell_id					Int32		取值范围 : -2147483648-2147483647
+{"ecl":%d,"rsrp":%d,"sinr":%d,"pci":%d,"cell_id":%d}
+	info_report设备信息上报
+IMEI					string
+ICCID					string
+{"IMEI":%s,"ICCID":%s}
+	battery_voltage_low_alarm电池低电压告警
+battery_voltage			float		0-24
+{"battery_voltage":%.1f}
+	valve_onoff_cmd阀门开关控制
+valve_onoff				enum
+{"taskId":1,"payload":{"valve_onoff":1}}
+	valve_onoff_resp阀门开关控制响应
+valve_onoff				enum
+act_result				enum
+
+{"time":%s,"water_consumption":%.1f,"pressure":%d,"switch_state":0,"import_accumulate":%.1f,"export_accumulate":%.1f,"IMEI":%s,"IMSI":%s,"ICCID":%s,"battery_voltage":%.1f}
+
+{"taskId":2,"payload":{"time":24,"report_time5":"234","report_time4":"234","report_time3":"234","report_time2":"432","report_time1":"234"}}
+{"taskId":3,"resultPayload":{"time":24,"report_time5":"234","report_time4":"234","report_time3":"234","report_time2":"432","report_time1":"234"}}
